@@ -7,10 +7,18 @@
         "start": "node index.js"
     },
     "dependencies": {
-        "express": "^4.19.2",
+        "@langchain/community": "^0.3.32",
+        "@langchain/core": "^0.3.80",
+        "chromadb": "^3.2.1",
+        "csv-parse": "^6.1.0",
+        "express": "^4.22.1",
         "form-data": "^4.0.5",
+        "fs": "^0.0.1-security",
+        "langchain": "^0.3.18",
         "multer": "^2.0.2",
-        "node-fetch": "^3.3.2"
+        "node-fetch": "^3.3.2",
+        "ollama": "^0.6.3",
+        "path": "^0.12.7"
     },
     "devDependencies": {
         "@types/cors": "^2.8.19",
