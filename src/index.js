@@ -27,65 +27,61 @@ app.use(express.json());
 
 // RAW handler (octet-stream)
 app.post(
-  "/image",
-  express.raw({ type: "application/octet-stream", limit: "20mb" }),
-  async (req, res, next) => {
-    if (req.is("application/octet-stream")) {
-      return handleOctetStream(req, res);
+    "/image",
+    express.raw({ type: "application/octet-stream", limit: "20mb" }),
+    async (req, res, next) => {
+        if (req.is("application/octet-stream")) {
+            return handleOctetStream(req, res);
+        }
+        next();
     }
-    next();
-  }
 );
 
 // MULTIPART handler (browser / Postman)
-app.post(
-  "/image",
-  upload.any(),
-  async (req, res) => {
+app.post("/image", upload.any(), async (req, res) => {
     try {
-      if (!req.files || req.files.length === 0) {
-        throw new Error("No file received");
-      }
+        if (!req.files || req.files.length === 0) {
+            throw new Error("No file received");
+        }
 
-      const file = req.files[0];
+        const file = req.files[0];
 
-      const form = new FormData();
-      form.append("imageData", file.buffer, {
-        filename: file.originalname || "image.jpg",
-        contentType: file.mimetype || "image/jpeg",
-        knownLength: file.size
-      });
+        const form = new FormData();
+        form.append("imageData", file.buffer, {
+            filename: file.originalname || "image.jpg",
+            contentType: file.mimetype || "image/jpeg",
+            knownLength: file.size,
+        });
 
-      await forward(form, res);
+        await forward(form, res);
     } catch (err) {
-      console.error(err);
-      res.status(400).json({ error: err.message });
+        console.error(err);
+        res.status(400).json({ error: err.message });
     }
-  }
-);
+});
 
 async function handleOctetStream(req, res) {
-  const form = new FormData();
-  form.append("imageData", req.body, {
-    filename: "image.bin",
-    contentType: "application/octet-stream"
-  });
+    const form = new FormData();
+    form.append("imageData", req.body, {
+        filename: "image.bin",
+        contentType: "application/octet-stream",
+    });
 
-  await forward(form, res);
+    await forward(form, res);
 }
 
 async function forward(form, res) {
-  const response = await fetch("http://localhost:80/image", {
-    method: "POST",
-    body: form,
-    headers: form.getHeaders()
-  });
+    const response = await fetch("http://localhost:80/image", {
+        method: "POST",
+        body: form,
+        headers: form.getHeaders(),
+    });
 
-  const buffer = Buffer.from(await response.arrayBuffer());
+    const buffer = Buffer.from(await response.arrayBuffer());
 
-  res.status(response.status);
-  response.headers.forEach((v, k) => res.setHeader(k, v));
-  res.send(buffer);
+    res.status(response.status);
+    response.headers.forEach((v, k) => res.setHeader(k, v));
+    res.send(buffer);
 }
 
 /* =========================
@@ -93,8 +89,8 @@ async function forward(form, res) {
 ========================= */
 
 const llm = new Ollama({
-  model: "phi3.5",
-  temperature: 0.2
+    model: "phi3.5",
+    temperature: 0.2,
 });
 
 const SYSTEM_PROMPT = `
@@ -109,11 +105,11 @@ When judging a matchup, consider: Offensive potential: high Attack or Sp. Atk. S
 Use its types and offensive stats to guess what kind of attacks it uses. Choose 2–3 Pokémon from ALL_POKEMON that: Are present in the Context, Take low damage (small multipliers) from X's likely attacking types, AND Either outspeed it (higher Speed) or are bulky on the relevant defensive side.
 Answer with: 2–3 Pokémon names, and A very short reason for each (e.g. "resists Fire and Flying, high Sp. Def"). If the user asks "Is A good against B?": Answer "Yes" or "No" first, then 1 short sentence based only on types/stats in the Context. If the user asks for stats/info about a Pokémon: Return only the fields that actually appear in the Context. STRICT CONSTRAINTS NEVER invent new Pokémon names. NEVER change a Pokémon's type or stats from what the Context says.
 NEVER mention specific moves unless they appear explicitly in the Context(your current data does not include moves, so you will normally talk in general terms like "can hit super effectively with Rock-type attacks"). If the Context does not give you enough information to answer safely, say: "I don't have enough data in the context to answer." STYLE Be concise: 1–3 sentences total.
-`
+`;
 
 const qaPrompt = ChatPromptTemplate.fromMessages([
-  ["system", SYSTEM_PROMPT],
-  ["human", "{input}"]
+    ["system", SYSTEM_PROMPT],
+    ["human", "{input}"],
 ]);
 
 /* =========================
@@ -121,25 +117,28 @@ const qaPrompt = ChatPromptTemplate.fromMessages([
 ========================= */
 
 app.post("/chat", async (req, res) => {
-  try {
-    const { question } = req.body;
+    try {
+        const { question } = req.body;
+        console.log("Received question:", question);
 
-    if (!question) {
-      return res.status(400).json({ error: "question is required" });
+        if (!question) {
+            return res.status(400).json({ error: "question is required" });
+        }
+
+        const prompt = await qaPrompt.format({
+            input: question,
+        });
+
+        console.log("Formatted prompt:", prompt);
+        console.log("Invoking LLM...");
+        const answer = await llm.invoke(prompt);
+
+        console.log("LLM answer:", answer);
+        res.json({ answer });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal error" });
     }
-
-    const prompt = await qaPrompt.format({
-      input: question
-    });
-
-    const answer = await llm.invoke(prompt);
-
-    res.json({ answer });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal error" });
-  }
 });
 
 /* =========================
@@ -149,5 +148,5 @@ app.post("/chat", async (req, res) => {
 const PORT = 3000;
 
 app.listen(PORT, () =>
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
+    console.log(`🚀 Server running on http://localhost:${PORT}`)
 );
